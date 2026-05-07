@@ -3,45 +3,305 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Галерея для двоих</title>
+    <title>Галерея для двоих — Защищённая версия</title>
     <style>
-        *{box-sizing:border-box}body{font-family:system-ui;background:#f0f2f5;margin:0;padding:20px}.container{max-width:1300px;margin:0 auto}.login-box,.gallery-view{background:#fff;border-radius:24px;padding:2rem;max-width:400px;margin:100px auto}.gallery-view{max-width:none;display:none}input,button{padding:10px 16px;margin:8px 0;border-radius:40px;border:1px solid #cbd5e1}button{background:#3b82f6;color:#fff;border:none;cursor:pointer}.albums-list{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}.album-chip{background:#e2e8f0;padding:6px 16px;border-radius:40px;cursor:pointer}.album-chip.active{background:#3b82f6;color:#fff}.photos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem}.photo-card{background:#fff;border-radius:16px;overflow:hidden}.photo-card img{width:100%;aspect-ratio:1;object-fit:cover}.photo-info{padding:8px;display:flex;justify-content:space-between}.delete-btn{background:#ef4444;border:none;color:#fff;border-radius:20px;padding:4px 12px;cursor:pointer}.dropzone{border:2px dashed #cbd5e1;padding:2rem;text-align:center;border-radius:20px;margin:20px 0;cursor:pointer}.top-bar{display:flex;justify-content:space-between;align-items:center}.error{color:red}
+        *{box-sizing:border-box}
+        body{font-family:system-ui;background:#f0f2f5;margin:0;padding:20px;transition:background 0.3s}
+        body.dark{background:#1a1a2e;color:#eee}
+        .container{max-width:1300px;margin:0 auto}
+        .login-box,.gallery-view{background:#fff;border-radius:24px;padding:2rem;max-width:400px;margin:100px auto;transition:background 0.3s}
+        body.dark .login-box,body.dark .gallery-view{background:#16213e;color:#eee}
+        body.dark .login-box input,body.dark .gallery-view input{background:#0f3460;color:#fff;border-color:#e94560}
+        .gallery-view{max-width:none;display:none}
+        input,button,textarea{padding:10px 16px;margin:8px 0;border-radius:40px;border:1px solid #cbd5e1}
+        button{background:#3b82f6;color:#fff;border:none;cursor:pointer}
+        button:hover{background:#2563eb}
+        .albums-list{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}
+        .album-chip{background:#e2e8f0;padding:6px 16px;border-radius:40px;cursor:pointer}
+        body.dark .album-chip{background:#0f3460}
+        .album-chip.active{background:#3b82f6;color:#fff}
+        .photos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem}
+        .photo-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+        body.dark .photo-card{background:#0f3460}
+        .photo-card img{width:100%;aspect-ratio:1;object-fit:cover}
+        .photo-info{padding:12px}
+        .photo-actions{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+        .like-btn{background:#ff6b6b;padding:4px 12px;font-size:0.8rem}
+        .comments-section{margin-top:10px;padding-top:8px;border-top:1px solid #ddd}
+        body.dark .comments-section{border-color:#e94560}
+        .comment{font-size:0.75rem;padding:4px 0;color:#555}
+        body.dark .comment{color:#ccc}
+        .comment-input{width:100%;padding:6px;border-radius:20px;margin-top:5px}
+        .delete-btn{background:#ef4444;border:none;color:#fff;border-radius:20px;padding:4px 12px;cursor:pointer}
+        .dropzone{border:2px dashed #cbd5e1;padding:2rem;text-align:center;border-radius:20px;margin:20px 0;cursor:pointer}
+        body.dark .dropzone{border-color:#e94560;background:#0f3460}
+        .top-bar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+        .error{color:red}
+        .checkbox-select{display:flex;align-items:center;gap:8px;margin:10px 0}
+        .dark-toggle{background:#4a5568}
+        .select-all-btn{background:#64748b}
+        .download-btn{background:#10b981}
+        .photo-checkbox{margin-right:8px}
+        .notification{position:fixed;bottom:20px;right:20px;background:#3b82f6;color:#fff;padding:12px 20px;border-radius:40px;z-index:1000;animation:slideIn 0.3s}
+        @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
     </style>
 </head>
 <body>
 <div class="container">
     <div id="loginView" class="login-box">
         <h2>👥 Галерея для двоих</h2>
-        <input type="text" id="loginUsername" placeholder="Логин (user1 или user2)"><br>
-        <input type="password" id="loginPassword" placeholder="Пароль (pass123 / pass456)"><br>
+        <p>Введите логин и пароль</p>
+        <input type="text" id="loginUsername" placeholder="Логин" autocomplete="off"><br>
+        <input type="password" id="loginPassword" placeholder="Пароль"><br>
         <button id="loginBtn">Войти</button>
         <div id="loginError" class="error"></div>
     </div>
+    
     <div id="galleryView" class="gallery-view">
         <div class="top-bar">
             <h2>📸 Галерея для двоих</h2>
-            <div><span id="currentUser"></span> <button id="logoutBtn">Выйти</button></div>
+            <div>
+                <button id="darkModeToggle" class="dark-toggle">🌙 Тёмная тема</button>
+                <span id="currentUser" style="margin:0 10px"></span>
+                <button id="logoutBtn">Выйти</button>
+            </div>
         </div>
-        <input type="text" id="newAlbumName" placeholder="Название альбома">
-        <button id="createAlbumBtn">+ Создать альбом</button>
+        
+        <div>
+            <input type="text" id="newAlbumName" placeholder="Название альбома">
+            <button id="createAlbumBtn">+ Создать альбом</button>
+        </div>
         <div id="albumsList" class="albums-list"></div>
-        <div id="dropzone" class="dropzone">📤 Нажми или перетащи фото</div>
+        
+        <div id="dropzone" class="dropzone">📤 Нажми или перетащи фото для загрузки</div>
         <input type="file" id="fileInput" multiple accept="image/*" style="display:none">
+        
+        <div class="checkbox-select">
+            <button id="selectAllBtn" class="select-all-btn">✅ Выбрать все</button>
+            <button id="deselectAllBtn" class="select-all-btn">❌ Снять все</button>
+            <button id="downloadSelectedBtn" class="download-btn">📥 Скачать выбранные</button>
+        </div>
+        
         <div id="photosContainer"></div>
     </div>
 </div>
+
 <script>
-let currentAlbumId=null,currentUser=null;
-async function api(url,opt={}){const r=await fetch(url,{...opt,credentials:'include'});if(!r.ok)throw Error(await r.text());return r.json();}
-async function checkAuth(){try{const d=await api('/api/me');currentUser=d.username;document.getElementById('currentUser').innerText=currentUser;document.getElementById('loginView').style.display='none';document.getElementById('galleryView').style.display='block';await loadAlbums();}catch(e){document.getElementById('loginView').style.display='block';document.getElementById('galleryView').style.display='none';}}
-async function loadAlbums(){const a=await api('/api/albums');const c=document.getElementById('albumsList');if(!a.length){c.innerHTML='<em>Нет альбомов. Создайте первый!</em>';return}c.innerHTML='';a.forEach(alb=>{const chip=document.createElement('div');chip.className='album-chip'+(currentAlbumId===alb.id?' active':'');chip.innerText=alb.name;chip.onclick=()=>{currentAlbumId=alb.id;loadAlbums();loadPhotos(alb.id);};c.appendChild(chip);});if(!currentAlbumId&&a.length){currentAlbumId=a[0].id;loadPhotos(currentAlbumId);loadAlbums();}}
-async function loadPhotos(albumId){const p=await api(`/api/photos/${albumId}`);const cont=document.getElementById('photosContainer');if(!p.length){cont.innerHTML='<div>✨ Нет фото. Загрузите первое!</div>';return}const grid=document.createElement('div');grid.className='photos-grid';p.forEach(ph=>{const card=document.createElement('div');card.className='photo-card';card.innerHTML=`<img src="/uploads/${ph.filename}"><div class="photo-info"><span>📅 ${new Date(ph.timestamp).toLocaleDateString()} (${ph.uploaded_by})</span><button class="delete-btn" data-id="${ph.id}">🗑️</button></div>`;grid.appendChild(card);});cont.innerHTML='';cont.appendChild(grid);document.querySelectorAll('.delete-btn').forEach(btn=>{btn.onclick=async()=>{if(confirm('Удалить фото?')){await api(`/api/photo/${btn.dataset.id}`,{method:'DELETE'});loadPhotos(currentAlbumId);}};});}
-async function uploadPhotos(files){if(!currentAlbumId)return alert('Выберите альбом');const fd=new FormData();for(let f of files)fd.append('photos',f);await fetch(`/api/upload/${currentAlbumId}`,{method:'POST',body:fd,credentials:'include'});loadPhotos(currentAlbumId);}
-document.getElementById('loginBtn').onclick=async()=>{const u=document.getElementById('loginUsername').value,p=document.getElementById('loginPassword').value;try{await api('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});checkAuth();}catch(e){document.getElementById('loginError').innerText='Неверный логин или пароль';}};
-document.getElementById('logoutBtn').onclick=async()=>{await api('/api/logout',{method:'POST'});checkAuth();};
-document.getElementById('createAlbumBtn').onclick=async()=>{const name=document.getElementById('newAlbumName').value;if(!name)return alert('Введите название');await api('/api/albums',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});document.getElementById('newAlbumName').value='';loadAlbums();};
-const dropzone=document.getElementById('dropzone'),fileInput=document.getElementById('fileInput');dropzone.onclick=()=>fileInput.click();fileInput.onchange=()=>{if(fileInput.files.length)uploadPhotos(fileInput.files);fileInput.value='';};dropzone.ondragover=(e)=>{e.preventDefault();dropzone.style.background='#eef2ff';};dropzone.ondragleave=()=>dropzone.style.background='#fafcff';dropzone.ondrop=(e)=>{e.preventDefault();dropzone.style.background='#fafcff';uploadPhotos(e.dataTransfer.files);};
+let currentAlbumId = null, currentUser = null, selectedPhotos = new Set(), eventSource = null;
+
+async function api(url, opt = {}) {
+    const r = await fetch(url, { ...opt, credentials: 'include' });
+    if (!r.ok) throw Error(await r.text());
+    return r.json();
+}
+
+function showNotification(msg) {
+    const notif = document.createElement('div');
+    notif.className = 'notification';
+    notif.innerText = msg;
+    document.body.appendChild(notif);
+    setTimeout(() => notif.remove(), 4000);
+}
+
+async function checkAuth() {
+    try {
+        const d = await api('/api/me');
+        currentUser = d.username;
+        document.getElementById('currentUser').innerText = currentUser;
+        document.getElementById('loginView').style.display = 'none';
+        document.getElementById('galleryView').style.display = 'block';
+        await loadAlbums();
+        setupNotifications();
+    } catch(e) {
+        document.getElementById('loginView').style.display = 'block';
+        document.getElementById('galleryView').style.display = 'none';
+    }
+}
+
+function setupNotifications() {
+    if (eventSource) eventSource.close();
+    eventSource = new EventSource('/api/notifications/stream');
+    eventSource.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        showNotification(`📸 Новое фото от ${data.uploaded_by}!`);
+        if (currentAlbumId) loadPhotos(currentAlbumId);
+    };
+}
+
+async function loadAlbums() {
+    const a = await api('/api/albums');
+    const c = document.getElementById('albumsList');
+    if (!a.length) { c.innerHTML = '<em>Нет альбомов. Создайте первый!</em>'; return; }
+    c.innerHTML = '';
+    a.forEach(alb => {
+        const chip = document.createElement('div');
+        chip.className = 'album-chip' + (currentAlbumId === alb.id ? ' active' : '');
+        chip.innerText = alb.name;
+        chip.onclick = () => { currentAlbumId = alb.id; loadAlbums(); loadPhotos(alb.id); };
+        c.appendChild(chip);
+    });
+    if (!currentAlbumId && a.length) { currentAlbumId = a[0].id; loadPhotos(currentAlbumId); loadAlbums(); }
+}
+
+async function loadPhotos(albumId) {
+    const photos = await api(`/api/photos/${albumId}`);
+    const container = document.getElementById('photosContainer');
+    if (!photos.length) { container.innerHTML = '<div class="empty-album">✨ Нет фото. Загрузите первое!</div>'; return; }
+    
+    const grid = document.createElement('div');
+    grid.className = 'photos-grid';
+    
+    for (const ph of photos) {
+        const [likes, comments] = await Promise.all([
+            api(`/api/likes/${ph.id}`),
+            api(`/api/comments/${ph.id}`)
+        ]);
+        
+        const card = document.createElement('div');
+        card.className = 'photo-card';
+        card.dataset.photoId = ph.id;
+        card.innerHTML = `
+            <div style="position:relative">
+                <input type="checkbox" class="photo-checkbox" data-id="${ph.id}" style="position:absolute;top:10px;left:10px;width:20px;height:20px">
+                <img src="/uploads/${ph.filename}">
+            </div>
+            <div class="photo-info">
+                <div>📅 ${new Date(ph.timestamp).toLocaleDateString()} <br> 👤 ${ph.uploaded_by}</div>
+                <button class="delete-btn" data-id="${ph.id}">🗑️</button>
+            </div>
+            <div class="photo-actions">
+                <button class="like-btn" data-id="${ph.id}" data-liked="${likes.userLiked}">${likes.userLiked ? '❤️' : '♡'} ${likes.count}</button>
+            </div>
+            <div class="comments-section" data-id="${ph.id}">
+                <div class="comments-list"></div>
+                <textarea class="comment-input" placeholder="Написать комментарий..." rows="2"></textarea>
+                <button class="comment-submit" data-id="${ph.id}">💬 Отправить</button>
+            </div>
+        `;
+        grid.appendChild(card);
+        
+        // Загружаем комментарии
+        const commentsList = card.querySelector('.comments-list');
+        comments.forEach(cmt => {
+            const div = document.createElement('div');
+            div.className = 'comment';
+            div.innerHTML = `<strong>${cmt.username}</strong> (${new Date(cmt.timestamp).toLocaleTimeString()}): ${cmt.text}`;
+            commentsList.appendChild(div);
+        });
+    }
+    
+    container.innerHTML = '';
+    container.appendChild(grid);
+    
+    // Обработчики
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.onclick = async () => { if (confirm('Удалить фото?')) { await api(`/api/photo/${btn.dataset.id}`, { method: 'DELETE' }); loadPhotos(currentAlbumId); } };
+    });
+    
+    document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.onclick = async () => {
+            const liked = btn.dataset.liked === 'true';
+            if (liked) {
+                await api('/api/likes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photo_id: btn.dataset.id }) });
+                btn.dataset.liked = 'false';
+            } else {
+                await api('/api/likes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photo_id: btn.dataset.id }) });
+                btn.dataset.liked = 'true';
+            }
+            const newLikes = await api(`/api/likes/${btn.dataset.id}`);
+            btn.innerHTML = `${newLikes.userLiked ? '❤️' : '♡'} ${newLikes.count}`;
+        };
+    });
+    
+    document.querySelectorAll('.comment-submit').forEach(btn => {
+        btn.onclick = async () => {
+            const textarea = btn.parentElement.querySelector('.comment-input');
+            const text = textarea.value.trim();
+            if (!text) return;
+            await api('/api/comments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ photo_id: btn.dataset.id, text }) });
+            textarea.value = '';
+            loadPhotos(currentAlbumId);
+        };
+    });
+    
+    document.querySelectorAll('.photo-checkbox').forEach(cb => {
+        cb.onchange = () => {
+            if (cb.checked) selectedPhotos.add(cb.dataset.id);
+            else selectedPhotos.delete(cb.dataset.id);
+        };
+    });
+}
+
+async function uploadPhotos(files) {
+    if (!currentAlbumId) return alert('Выберите альбом');
+    const fd = new FormData();
+    for (let f of files) fd.append('photos', f);
+    await fetch(`/api/upload/${currentAlbumId}`, { method: 'POST', body: fd, credentials: 'include' });
+    loadPhotos(currentAlbumId);
+}
+
+// Выборочное скачивание
+document.getElementById('downloadSelectedBtn')?.addEventListener('click', async () => {
+    if (selectedPhotos.size === 0) return alert('Выберите хотя бы одно фото');
+    const photos = await api(`/api/photos/${currentAlbumId}`);
+    const selected = photos.filter(p => selectedPhotos.has(p.id.toString()));
+    if (selected.length === 0) return;
+    
+    const zip = new JSZip();
+    for (const ph of selected) {
+        const response = await fetch(`/uploads/${ph.filename}`, { credentials: 'include' });
+        const blob = await response.blob();
+        zip.file(ph.original_name || `${ph.id}.jpg`, blob);
+    }
+    const content = await zip.generateAsync({ type: 'blob' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(content);
+    link.download = 'selected_photos.zip';
+    link.click();
+    URL.revokeObjectURL(link.href);
+});
+
+document.getElementById('selectAllBtn')?.addEventListener('click', () => {
+    document.querySelectorAll('.photo-checkbox').forEach(cb => { cb.checked = true; selectedPhotos.add(cb.dataset.id); });
+});
+
+document.getElementById('deselectAllBtn')?.addEventListener('click', () => {
+    document.querySelectorAll('.photo-checkbox').forEach(cb => { cb.checked = false; selectedPhotos.clear(); });
+});
+
+// Темная тема
+if (localStorage.getItem('darkMode') === 'enabled') {
+    document.body.classList.add('dark');
+}
+document.getElementById('darkModeToggle')?.addEventListener('click', () => {
+    document.body.classList.toggle('dark');
+    localStorage.setItem('darkMode', document.body.classList.contains('dark') ? 'enabled' : 'disabled');
+});
+
+// Авторизация
+document.getElementById('loginBtn').onclick = async () => {
+    const u = document.getElementById('loginUsername').value;
+    const p = document.getElementById('loginPassword').value;
+    try {
+        await api('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) });
+        checkAuth();
+    } catch(e) {
+        document.getElementById('loginError').innerText = 'Неверный логин или пароль';
+    }
+};
+
+document.getElementById('logoutBtn').onclick = async () => { await api('/api/logout', { method: 'POST' }); checkAuth(); };
+document.getElementById('createAlbumBtn').onclick = async () => { const name = document.getElementById('newAlbumName').value; if (!name) return alert('Введите название'); await api('/api/albums', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }); document.getElementById('newAlbumName').value = ''; loadAlbums(); };
+
+const dropzone = document.getElementById('dropzone'), fileInput = document.getElementById('fileInput');
+dropzone.onclick = () => fileInput.click();
+fileInput.onchange = () => { if (fileInput.files.length) uploadPhotos(fileInput.files); fileInput.value = ''; };
+dropzone.ondragover = (e) => { e.preventDefault(); dropzone.style.background = '#eef2ff'; };
+dropzone.ondragleave = () => dropzone.style.background = '#fafcff';
+dropzone.ondrop = (e) => { e.preventDefault(); dropzone.style.background = '#fafcff'; uploadPhotos(e.dataTransfer.files); };
+
 checkAuth();
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </body>
 </html>
