@@ -9,11 +9,9 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Папка для загрузок
 const uploadDir = path.join('/tmp', 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-// Хранилище для файлов
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadDir),
     filename: (req, file, cb) => {
@@ -32,12 +30,9 @@ const upload = multer({
     }
 });
 
-// База данных
 const db = new sqlite3.Database('/tmp/gallery.db');
 
-// Создание таблиц
 db.serialize(() => {
-    // Пользователи
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
@@ -46,24 +41,22 @@ db.serialize(() => {
         locked_until INTEGER DEFAULT 0
     )`);
     
-    // Альбомы
     db.run(`CREATE TABLE IF NOT EXISTS albums (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT,
         created_at INTEGER
     )`);
     
-    // Фото
     db.run(`CREATE TABLE IF NOT EXISTS photos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         album_id INTEGER,
         filename TEXT,
         original_name TEXT,
         uploaded_by TEXT,
+        caption TEXT,
         timestamp INTEGER
     )`);
     
-    // Комментарии
     db.run(`CREATE TABLE IF NOT EXISTS comments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         photo_id INTEGER,
@@ -72,7 +65,6 @@ db.serialize(() => {
         timestamp INTEGER
     )`);
     
-    // Лайки
     db.run(`CREATE TABLE IF NOT EXISTS likes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         photo_id INTEGER,
@@ -80,7 +72,6 @@ db.serialize(() => {
         UNIQUE(photo_id, username)
     )`);
     
-    // Логи попыток входа
     db.run(`CREATE TABLE IF NOT EXISTS login_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT,
@@ -88,8 +79,7 @@ db.serialize(() => {
         ip TEXT,
         timestamp INTEGER
     )`);
-    
-    // Добавляем пользователей с хешированными паролями
+
     const users = [
         { username: 'Danya', password: 'pass250' },
         { username: 'Nastunya', password: 'pass324' }
@@ -102,54 +92,40 @@ db.serialize(() => {
                     if (!err) {
                         db.run('INSERT INTO users (username, password, failed_attempts, locked_until) VALUES (?, ?, 0, 0)', 
                             [user.username, hash]);
-                        console.log(`✅ Пользователь ${user.username} создан`);
                     }
                 });
-            } else {
-                console.log(`👤 Пользователь ${user.username} уже существует`);
             }
         });
     });
 });
 
-// Middleware
 app.use(express.json());
 app.use(express.static('public'));
 app.use(session({
-    secret: 'ultra_secret_gallery_key_2025_change_me',
+    secret: 'ultra_secret_gallery_key_2025',
     resave: false,
     saveUninitialized: false,
     cookie: { 
         maxAge: 1000 * 60 * 60 * 24,
         httpOnly: true,
-        secure: false,
         sameSite: 'lax'
     }
 }));
 
-// Функция проверки блокировки
 function isLocked(user) {
-    if (user && user.locked_until > Date.now()) {
-        return true;
-    }
-    return false;
+    return user && user.locked_until > Date.now();
 }
 
-// Функция логирования попыток входа
 function logLoginAttempt(username, success, ip) {
     db.run('INSERT INTO login_logs (username, success, ip, timestamp) VALUES (?, ?, ?, ?)',
         [username, success ? 1 : 0, ip, Date.now()]);
 }
 
-// Middleware авторизации
 function auth(req, res, next) {
     if (req.session.userId) next();
     else res.status(401).json({ error: 'Не авторизован' });
 }
 
-// --- API ---
-
-// Логин с защитой от подбора
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -164,7 +140,6 @@ app.post('/api/login', (req, res) => {
             return res.status(401).json({ error: 'Неверный логин или пароль' });
         }
         
-        // Проверка блокировки
         if (user.locked_until > Date.now()) {
             const remaining = Math.ceil((user.locked_until - Date.now()) / 1000 / 60);
             return res.status(423).json({ error: `Аккаунт заблокирован на ${remaining} минут` });
@@ -172,19 +147,17 @@ app.post('/api/login', (req, res) => {
         
         bcrypt.compare(password, user.password, (err, result) => {
             if (result) {
-                // Успешный вход — сбрасываем попытки
                 db.run('UPDATE users SET failed_attempts = 0, locked_until = 0 WHERE id = ?', [user.id]);
                 req.session.userId = user.id;
                 req.session.username = user.username;
                 logLoginAttempt(username, true, ip);
                 res.json({ success: true, username: user.username });
             } else {
-                // Неудачная попытка
                 const newAttempts = (user.failed_attempts || 0) + 1;
                 let lockedUntil = 0;
                 
                 if (newAttempts >= 5) {
-                    lockedUntil = Date.now() + 15 * 60 * 1000; // блокировка на 15 минут
+                    lockedUntil = Date.now() + 15 * 60 * 1000;
                 }
                 
                 db.run('UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?', 
@@ -214,7 +187,7 @@ app.get('/api/me', (req, res) => {
     }
 });
 
-// Альбомы
+// === Альбомы: CRUD полностью ===
 app.get('/api/albums', auth, (req, res) => {
     db.all('SELECT * FROM albums ORDER BY created_at DESC', (err, albums) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -233,7 +206,43 @@ app.post('/api/albums', auth, (req, res) => {
     });
 });
 
-// Фото
+app.put('/api/albums/:id', auth, (req, res) => {
+    const { name } = req.body;
+    if (!name || name.trim() === '') {
+        return res.status(400).json({ error: 'Название не может быть пустым' });
+    }
+    db.run('UPDATE albums SET name = ? WHERE id = ?', [name.trim(), req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Альбом не найден' });
+        res.json({ success: true });
+    });
+});
+
+app.delete('/api/albums/:id', auth, (req, res) => {
+    // Сначала получаем все фото альбома
+    db.all('SELECT filename FROM photos WHERE album_id = ?', [req.params.id], (err, photos) => {
+        // Удаляем файлы с диска
+        if (photos) {
+            photos.forEach(photo => {
+                const filepath = path.join(uploadDir, photo.filename);
+                if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+            });
+        }
+        // Удаляем комментарии к фото этого альбома
+        db.run('DELETE FROM comments WHERE photo_id IN (SELECT id FROM photos WHERE album_id = ?)', [req.params.id]);
+        // Удаляем лайки к фото этого альбома
+        db.run('DELETE FROM likes WHERE photo_id IN (SELECT id FROM photos WHERE album_id = ?)', [req.params.id]);
+        // Удаляем фото
+        db.run('DELETE FROM photos WHERE album_id = ?', [req.params.id]);
+        // Удаляем альбом
+        db.run('DELETE FROM albums WHERE id = ?', [req.params.id], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        });
+    });
+});
+
+// === Фото ===
 app.get('/api/photos/:albumId', auth, (req, res) => {
     db.all('SELECT * FROM photos WHERE album_id = ? ORDER BY timestamp DESC', [req.params.albumId], (err, photos) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -243,14 +252,17 @@ app.get('/api/photos/:albumId', auth, (req, res) => {
 
 app.post('/api/upload/:albumId', auth, upload.array('photos', 20), (req, res) => {
     const files = req.files;
+    const captions = JSON.parse(req.body.captions || '[]');
+    
     if (!files || files.length === 0) {
         return res.status(400).json({ error: 'Нет файлов' });
     }
     
     let count = 0;
-    files.forEach(file => {
-        db.run(`INSERT INTO photos (album_id, filename, original_name, uploaded_by, timestamp) VALUES (?, ?, ?, ?, ?)`,
-            [req.params.albumId, file.filename, file.originalname, req.session.username, Date.now()],
+    files.forEach((file, idx) => {
+        const caption = captions[idx] ? captions[idx].trim().substring(0, 200) : '';
+        db.run(`INSERT INTO photos (album_id, filename, original_name, uploaded_by, caption, timestamp) VALUES (?, ?, ?, ?, ?, ?)`,
+            [req.params.albumId, file.filename, file.originalname, req.session.username, caption, Date.now()],
             (err) => {
                 if (err) console.error(err);
                 count++;
@@ -288,8 +300,6 @@ app.get('/api/comments/:photoId', auth, (req, res) => {
 app.post('/api/comments', auth, (req, res) => {
     const { photo_id, text } = req.body;
     if (!text || text.trim() === '') return res.status(400).json({ error: 'Комментарий не может быть пустым' });
-    
-    // Экранирование для защиты от XSS
     const safeText = text.trim().replace(/[<>]/g, '').substring(0, 500);
     
     db.run('INSERT INTO comments (photo_id, username, text, timestamp) VALUES (?, ?, ?, ?)',
@@ -324,7 +334,7 @@ app.delete('/api/likes', auth, (req, res) => {
     });
 });
 
-// Уведомления — через SSE
+// Уведомления через SSE
 const clients = [];
 app.get('/api/notifications/stream', auth, (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
@@ -340,7 +350,6 @@ app.get('/api/notifications/stream', auth, (req, res) => {
     });
 });
 
-// Функция отправки уведомлений всем кроме отправителя
 function notifyNewPhoto(photoData, uploader) {
     clients.forEach(client => {
         if (client.username !== uploader) {
@@ -349,24 +358,27 @@ function notifyNewPhoto(photoData, uploader) {
     });
 }
 
-// Модифицируем загрузку, чтобы отправлять уведомления
-const originalUpload = app.post('/api/upload/:albumId', auth, upload.array('photos', 20), (req, res) => {
+// Перехватываем загрузку для уведомлений
+const originalUploadHandler = app.post('/api/upload/:albumId', auth, upload.array('photos', 20), (req, res) => {
     const files = req.files;
+    const captions = JSON.parse(req.body.captions || '[]');
+    
     if (!files || files.length === 0) {
         return res.status(400).json({ error: 'Нет файлов' });
     }
     
     let count = 0;
-    files.forEach(file => {
-        db.run(`INSERT INTO photos (album_id, filename, original_name, uploaded_by, timestamp) VALUES (?, ?, ?, ?, ?)`,
-            [req.params.albumId, file.filename, file.originalname, req.session.username, Date.now()],
+    files.forEach((file, idx) => {
+        const caption = captions[idx] ? captions[idx].trim().substring(0, 200) : '';
+        db.run(`INSERT INTO photos (album_id, filename, original_name, uploaded_by, caption, timestamp) VALUES (?, ?, ?, ?, ?, ?)`,
+            [req.params.albumId, file.filename, file.originalname, req.session.username, caption, Date.now()],
             function(err) {
                 if (!err) {
-                    // Отправляем уведомление
                     notifyNewPhoto({
                         photoId: this.lastID,
                         filename: file.filename,
                         uploaded_by: req.session.username,
+                        caption: caption,
                         timestamp: Date.now()
                     }, req.session.username);
                 }
